@@ -1,0 +1,14 @@
+services:
+  setwise:
+    build: .
+    ports:
+      - "127.0.0.1:5050:5000"
+    environment:
+      SETWISE_DB: /data/setwise.db
+      SETWISE_SECRET_KEY: ${SETWISE_SECRET_KEY:-local-demo-not-for-public-use}
+    volumes:
+      - setwise_data:/data
+    restart: unless-stopped
+
+volumes:
+  setwise_data:

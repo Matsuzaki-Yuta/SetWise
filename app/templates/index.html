@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>
+            SetWise · {{page|capitalize}}
+        </title>
+        <link rel="stylesheet" href="{{url_for('static',filename='style.css')}}">
+    </head>
+    <body>
+        <div class="layout">
+            <aside>
+                <div class="brand">
+                    SetWise
+                    <small>
+                        SETTING STUDIO · FLASK
+                    </small>
+                </div>
+                <nav>
+                    {% for code,title in [('overview','Overview'),('walls','Walls & climbs'),('targets','Targets'),('planner','Setting planner')] %}
+                        <a class="navlink {% if page==code %} active {% endif %} " href="{{url_for('home',page=code, gym_id=gym_id)}}">
+                            {{title}}
+                        </a>
+                    {% endfor %}
+                </nav>
+            </aside>
+            <main>
+                <header>
+                    <div>
+                        <h1>
+                            {{ {'overview':'Gym overview','walls':'Walls & climbs','targets':'Distribution targets','planner':'Setting day planner'}[page] }}
+                        </h1>
+                        <div class="muted small">
+                            Balance grades, styles and wall angles.
+                        </div>
+                    </div>
+                    <div class="header-tools">
+                        <form method="get" action="{{ url_for('home') }}" class="gym-selector" aria-label="Select gym">
+                            <label for="gym-select">
+                                Current gym
+                            </label>
+                            <select id="gym-select" name="gym_id">
+                                {% for id, name in gyms.items() %}
+                                    <option value="{{ id }}" {% if id == gym_id %} selected {% endif %} >
+                                        {{ name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <input type="hidden" name="page" value="{{ page }}">
+                            <button class="btn" type="submit">
+                                Switch gym
+                            </button>
+                        </form>
+                        <span class="tag">
+                            Flask · no JavaScript
+                        </span>
+                    </div>
+                </header>
+                {% with msgs=get_flashed_messages() %}
+                    {% for msg in msgs %}
+                        <div class="notice flash">
+                            {{msg}}
+                        </div>
+                    {% endfor %}
+                {% endwith %}
+                {% if page=='overview' %}
+                    <div class="grid3">
+                        <div class="card metric">
+                            <span>
+                                Active climbs
+                            </span>
+                            <strong>
+                                {{active|length}}
+                            </strong>
+                        </div>
+                        <div class="card metric">
+                            <span>
+                                Target climbs
+                            </span>
+                            <strong>
+                                {{total_goal}}
+                            </strong>
+                        </div>
+                        <div class="card metric">
+                            <span>
+                                Walls
+                            </span>
+                            <strong>
+                                {{state.walls|length}}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <div class="card">
+                            <h2>
+                                Grades · current vs target
+                            </h2>
+                            <div class="legend">
+                                <span>
+                                    <i>
+                                    </i>
+                                    Current
+                                </span>
+                                <span>
+                                    <i class="target">
+                                    </i>
+                                    Goal
+                                </span>
+                            </div>
+                            {% for r in grade_rows %}
+                                <div class="bar-row">
+                                    <b>
+                                        {{r.name}}
+                                    </b>
+                                    <div class="bars">
+                                        <div class="track">
+                                            <div class="fill" style="width:{{r.current_pct}}%">
+                                            </div>
+                                        </div>
+                                        <div class="track">
+                                            <div class="fill target" style="width:{{r.goal_pct}}%">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span>
+                                        {{r.current}} / {{r.goal}}
+                                    </span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="card">
+                            <h2>
+                                Styles · current vs target
+                            </h2>
+                            <div class="legend">
+                                <span>
+                                    <i>
+                                    </i>
+                                    Current
+                                </span>
+                                <span>
+                                    <i class="target">
+                                    </i>
+                                    Goal
+                                </span>
+                            </div>
+                            {% for r in style_rows %}
+                                <div class="bar-row">
+                                    <span>
+                                        {{r.name}}
+                                    </span>
+                                    <div class="bars">
+                                        <div class="track">
+                                            <div class="fill" style="width:{{r.current_pct}}%">
+                                            </div>
+                                        </div>
+                                        <div class="track">
+                                            <div class="fill target" style="width:{{r.goal_pct}}%">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span>
+                                        {{r.current}} / {{r.goal}}
+                                    </span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h2>
+                            Grade distribution by wall
+                        </h2>
+                        <div class="scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            Wall
+                                        </th>
+                                        <th>
+                                            Angle
+                                        </th>
+                                        {% for g in grades %}
+                                            <th>
+                                                {{g}}
+                                            </th>
+                                        {% endfor %}
+                                        <th>
+                                            Total
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for w in state.walls %}
+                                        <tr>
+                                            <td>
+                                                {{w.name}}
+                                            </td>
+                                            <td>
+                                                {{w.angle}}°
+                                            </td>
+                                            {% for g in grades %}
+                                                <td>
+                                                    {{by_wall[w.id]|selectattr('grade','equalto',g)|list|length}}
+                                                </td>
+                                            {% endfor %}
+                                            <td>
+                                                <b>
+                                                    {{by_wall[w.id]|length}}
+                                                </b>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% elif page=='walls' %}
+                    <div class="card stack">
+                        <h2>
+                            Walls
+                        </h2>
+                        <form method="post" action="{{url_for('action')}}" class="inlineform">
+                            <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                            <input type="hidden" name="page" value="walls">
+                            <input type="hidden" name="action" value="add_wall">
+                            <label class="field">
+                                Wall name
+                                <input name="name" maxlength="60" required placeholder="e.g. Main overhang">
+                            </label>
+                            <label class="field">
+                                Angle (°)
+                                <input type="number" name="angle" value="20" min="-90" max="90" step="0.5" required>
+                            </label>
+                            <button class="btn primary">
+                                + Add wall
+                            </button>
+                        </form>
+                        <div class="grid">
+                            {% for w in state.walls %}
+                                <div class="wallcard">
+                                    <div class="row">
+                                        <div>
+                                            <h3>
+                                                {{w.name}}
+                                            </h3>
+                                            <div class="angle">
+                                                {{w.angle}}° · {{by_wall[w.id]|length}} active climbs
+                                            </div>
+                                        </div>
+                                        <form method="post" action="{{url_for('action')}}">
+                                            <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                                            <input type="hidden" name="page" value="walls">
+                                            <input type="hidden" name="action" value="delete_wall">
+                                            <input type="hidden" name="wall_id" value="{{w.id}}">
+                                            <button class="btn smallbtn danger" title="Allowed only when no active or planned climbs remain">
+                                                Delete wall
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="card stack">
+                        <h2>
+                            Add a climb to a wall
+                        </h2>
+                        <form class="formgrid" method="post" action="{{url_for('action')}}">
+                            <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                            <input type="hidden" name="page" value="walls">
+                            <input type="hidden" name="action" value="add_climb">
+                            <label class="field">
+                                Wall
+                                <select name="wall_id" required>
+                                    {% for w in state.walls %}
+                                        <option value="{{w.id}}">
+                                            {{w.name}} ({{w.angle}}°)
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label class="field">
+                                Grade
+                                <select name="grade">
+                                    {% for g in grades %}
+                                        <option>
+                                            {{g}}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label class="field">
+                                Subgrade
+                                <select name="sub">
+                                    {% for s in subs %}
+                                        <option>
+                                            {{s}}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label class="field">
+                                Style
+                                <select name="style">
+                                    {% for s in styles %}
+                                        <option>
+                                            {{s}}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <div>
+                                <button class="btn primary" {% if not state.walls %} disabled {% endif %} >
+                                    + Add climb
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <h2>
+                            Active climbs
+                        </h2>
+                        <div class="scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            Wall
+                                        </th>
+                                        <th>
+                                            Grade
+                                        </th>
+                                        <th>
+                                            Subgrade
+                                        </th>
+                                        <th>
+                                            Style
+                                        </th>
+                                        <th>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for c in active %}
+                                        <tr>
+                                            <td>
+                                                {{wall_map[c.wallId].name if c.wallId in wall_map else 'Deleted wall'}}
+                                            </td>
+                                            <td>
+                                                {{c.grade}}
+                                            </td>
+                                            <td>
+                                                {{c.sub}}
+                                            </td>
+                                            <td>
+                                                {{c.style}}
+                                            </td>
+                                            <td>
+                                                <form method="post" action="{{url_for('action')}}">
+                                                    <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                                                    <input type="hidden" name="page" value="walls">
+                                                    <input type="hidden" name="action" value="remove_climb">
+                                                    <input type="hidden" name="climb_id" value="{{c.id}}">
+                                                    <button class="btn smallbtn danger">
+                                                        Remove
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="5">
+                                                No active climbs.
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% elif page=='targets' %}
+                    <div class="notice">
+                        Edit only
+                        <b>
+                            Easy, Middle, Hard
+                        </b>
+                        quantities. Total grade targets are calculated automatically.
+                    </div>
+                    <form method="post" action="{{url_for('action')}}">
+                        <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                        <input type="hidden" name="page" value="targets">
+                        <input type="hidden" name="action" value="save_targets">
+                        <div class="grid">
+                            <div class="card">
+                                <h2>
+                                    Subgrade targets
+                                </h2>
+                                <div class="scroll">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>
+                                                    Grade
+                                                </th>
+                                                {% for s in subs %}
+                                                    <th>
+                                                        {{s}}
+                                                    </th>
+                                                {% endfor %}
+                                                <th>
+                                                    Total
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for g in grades %}
+                                                <tr>
+                                                    <th>
+                                                        {{g}}
+                                                    </th>
+                                                    {% for s in subs %}
+                                                        <td>
+                                                            <input aria-label="{{g}} {{s}} goal" type="number" name="grade_{{g}}_{{s}}" min="0" max="200" required value="{{state.gradeTargets[g][loop.index0]}}">
+                                                        </td>
+                                                    {% endfor %}
+                                                    <td>
+                                                        <b>
+                                                            {{state.gradeTargets[g]|sum}}
+                                                        </b>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <h2>
+                                    Style targets
+                                </h2>
+                                {% for s in styles %}
+                                    <label class="field style-target">
+                                        {{s}}
+                                        <input type="number" name="style_{{s}}" value="{{state.styleTargets[s]}}" min="0" max="1000" required>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="actions" style="margin-top:16px">
+                            <button class="btn primary">
+                                Save targets
+                            </button>
+                        </div>
+                    </form>
+                {% elif page=='planner' %}
+                    <div class="card stack">
+                        <h2>
+                            1. Select walls and new climb counts
+                        </h2>
+                        <p class="muted small">
+                            Save the selection before generating your plan. Selected walls are only previewed for reset until you confirm removal.
+                        </p>
+                        <form method="post" action="{{url_for('action')}}">
+                            <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                            <input type="hidden" name="page" value="planner">
+                            <input type="hidden" name="action" value="select_walls">
+                            <div class="grid">
+                                {% for w in state.walls %}
+                                    <div class="checkrow">
+                                        <label>
+                                            <input type="checkbox" name="wall_ids" value="{{w.id}}" {% if w.id in selected_set %} checked {% endif %} >
+                                            <b>
+                                                {{w.name}}
+                                            </b>
+                                            ({{w.angle}}°)
+                                        </label>
+                                        <label class="field">
+                                            New climbs
+                                            <input type="number" name="count_{{w.id}}" min="0" max="30" value="{{state.newCounts.get(w.id,5)}}">
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="actions" style="margin-top:14px">
+                                <button class="btn primary">
+                                    Save wall selection
+                                </button>
+                            </div>
+                        </form>
+                        <div class="notice">
+                            {{selected_set|length}} walls selected · {{removal_count}} active climbs would be removed.
+                        </div>
+                        <div class="actions">
+                            <form method="post" action="{{url_for('action')}}">
+                                <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                                <input type="hidden" name="page" value="planner">
+                                <button name="action" value="generate_plan" class="btn primary" {% if not selected_set %} disabled {% endif %} >
+                                    Generate setting plan
+                                </button>
+                            </form>
+                        </div>
+                        <details>
+                            <summary class="danger-summary">
+                                Remove all active climbs on selected walls
+                            </summary>
+                            <form method="post" action="{{url_for('action')}}" class="actions">
+                                <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                                <input type="hidden" name="page" value="planner">
+                                <input type="hidden" name="action" value="confirm_reset">
+                                <label>
+                                    <input type="checkbox" name="confirm" value="yes" required>
+                                    I confirm removal of {{removal_count}} active climbs
+                                </label>
+                                <button class="btn danger" {% if not removal_count %} disabled {% endif %} >
+                                    Confirm wall reset
+                                </button>
+                            </form>
+                        </details>
+                    </div>
+                    <div class="card stack">
+                        <h2>
+                            2. Suggested setting plan
+                        </h2>
+                        <div class="muted small">
+                            Generated by a deterministic Python algorithm, not an LLM. Edit recommendations and save them as planned climbs.
+                        </div>
+                        {% if state.plan %}
+                            <form method="post" action="{{url_for('action')}}">
+                                <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                                <input type="hidden" name="page" value="planner">
+                                <input type="hidden" name="action" value="edit_plan">
+                                <div class="scroll">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>
+                                                    Wall
+                                                </th>
+                                                <th>
+                                                    Grade
+                                                </th>
+                                                <th>
+                                                    Subgrade
+                                                </th>
+                                                <th>
+                                                    Style
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for c in state.plan %}
+                                                <tr>
+                                                    <td>
+                                                        {{wall_map[c.wallId].name}}
+                                                    </td>
+                                                    <td>
+                                                        <select name="grade_{{c.id}}">
+                                                            {% for g in grades %}
+                                                                <option {% if g==c.grade %} selected {% endif %} >
+                                                                    {{g}}
+                                                                </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <select name="sub_{{c.id}}">
+                                                            {% for s in subs %}
+                                                                <option {% if s==c.sub %} selected {% endif %} >
+                                                                    {{s}}
+                                                                </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <select name="style_{{c.id}}">
+                                                            {% for s in styles %}
+                                                                <option {% if s==c.style %} selected {% endif %} >
+                                                                    {{s}}
+                                                                </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button class="btn">
+                                    Save plan edits
+                                </button>
+                            </form>
+                            <form method="post" action="{{url_for('action')}}">
+                                <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                                <input type="hidden" name="page" value="planner">
+                                <button class="btn primary" name="action" value="save_plan">
+                                    Save suggestions as planned climbs
+                                </button>
+                            </form>
+                        {% else %}
+                            <div class="empty">
+                                No suggestions yet.
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="card stack">
+                        <h2>
+                            3. Planned climbs
+                        </h2>
+                        {% if planned %}
+                            <div class="scroll">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                Wall
+                                            </th>
+                                            <th>
+                                                Grade
+                                            </th>
+                                            <th>
+                                                Subgrade
+                                            </th>
+                                            <th>
+                                                Style
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for c in planned %}
+                                            <tr>
+                                                <td>
+                                                    {{wall_map[c.wallId].name if c.wallId in wall_map else 'Unknown'}}
+                                                </td>
+                                                <td>
+                                                    {{c.grade}}
+                                                </td>
+                                                <td>
+                                                    {{c.sub}}
+                                                </td>
+                                                <td>
+                                                    {{c.style}}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <form method="post" action="{{url_for('action')}}">
+                                <input type="hidden" name="gym_id" value="{{ gym_id }}">
+                                <input type="hidden" name="page" value="planner">
+                                <button class="btn primary" name="action" value="activate_planned">
+                                    Mark all planned climbs active
+                                </button>
+                            </form>
+                        {% else %}
+                            <div class="muted small">
+                                No saved planned climbs.
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                <footer>
+                    Local prototype · Python + Flask + SQLite · No JavaScript or Bedrock integration. All edits submit standard HTML forms.
+                </footer>
+            </main>
+        </div>
+    </body>
+</html>
